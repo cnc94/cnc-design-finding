@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CNC Design Finding</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Arial,"Noto Sans Bengali",sans-serif;background:#f5f7fb;color:#172033}
+header{position:sticky;top:0;z-index:20;background:#111827;color:#fff;box-shadow:0 2px 12px #0002}
+.nav{max-width:1180px;margin:auto;padding:14px 18px;display:flex;align-items:center;gap:18px}
+.logo{font-size:20px;font-weight:800;margin-right:auto}.logo span{color:#60a5fa}
+nav{display:flex;gap:8px;flex-wrap:wrap}button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}
+.nav button{background:transparent;color:#fff}.nav .primary{background:#2563eb}.nav .danger{background:#dc2626}
+.hero{background:linear-gradient(135deg,#111827,#1d4ed8);color:#fff;padding:70px 18px}
+.hero-inner{max-width:1180px;margin:auto}.hero h1{font-size:clamp(34px,6vw,58px);margin:0 0 14px}.hero p{max-width:650px;font-size:18px;line-height:1.7;color:#dbeafe}
+.container{max-width:1180px;margin:auto;padding:34px 18px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}.section-title h2{margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 6px 20px #1111}
+.thumb{height:190px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;overflow:hidden}.thumb img{width:100%;height:100%;object-fit:cover}.noimg{font-size:45px;color:#9ca3af}
+.card-body{padding:18px}.card h3{margin:0 0 8px}.muted{color:#6b7280;font-size:14px;line-height:1.6}.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#e5e7eb;margin-bottom:10px}.approved{background:#dcfce7;color:#166534}.pending{background:#fef3c7;color:#92400e}.rejected{background:#fee2e2;color:#991b1b}.hidden{background:#e5e7eb;color:#374151}
+.card-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.blue{background:#2563eb;color:#fff}.gray{background:#e5e7eb;color:#111827}.green{background:#16a34a;color:#fff}.red{background:#dc2626;color:#fff}
+.empty{text-align:center;padding:45px;background:#fff;border:1px dashed #cbd5e1;border-radius:18px;color:#64748b}
+.hidden-section{display:none}.notice{padding:12px 14px;border-radius:10px;margin:12px 0;display:none}.notice.show{display:block}.ok{background:#dcfce7;color:#166534}.err{background:#fee2e2;color:#991b1b}
+.modal{position:fixed;inset:0;background:#0008;z-index:50;display:none;align-items:center;justify-content:center;padding:18px}.modal.show{display:flex}.modal-box{width:min(520px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:24px}.modal-box h2{margin-top:0}
+label{display:block;font-weight:700;font-size:14px;margin:13px 0 6px}input,textarea,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit}textarea{min-height:100px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.loading{text-align:center;padding:30px;color:#64748b}
+footer{margin-top:40px;background:#111827;color:#cbd5e1;text-align:center;padding:30px 18px}
+@media(max-width:650px){.nav{align-items:flex-start}.nav{flex-wrap:wrap}.logo{width:100%}.row{grid-template-columns:1fr}.hero{padding:50px 18px}.section-title{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">CNC <span>Design Finding</span></div>
+    <nav>
+      <button onclick="showSection('home')">Home</button>
+      <button onclick="showSection('dashboard')" id="dashBtn" style="display:none">Dashboard</button>
+      <button onclick="showSection('admin')" id="adminBtn" style="display:none">Admin</button>
+      <button onclick="openModal('loginModal')" id="loginBtn" class="primary">Login</button>
+      <button onclick="openModal('registerModal')" id="registerBtn">Register</button>
+      <button onclick="logout()" id="logoutBtn" class="danger" style="display:none">Logout</button>
+    </nav>
+  </div>
+</header>
+
+<section id="home">
+  <div class="hero">
+    <div class="hero-inner">
+      <h1>Find. Share. Create.</h1>
+      <p>CNC Design Finding — CNC furniture design খুঁজুন, আপনার ডিজাইন জমা দিন এবং অনুমোদিত ডিজাইন ডাউনলোড করুন।</p>
+      <button class="blue" onclick="openModal('registerModal')">Submit Your Design</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="section-title"><h2>Approved CNC Designs</h2><button class="gray" onclick="loadDesigns()">Refresh</button></div>
+    <div id="publicNotice" class="notice"></div>
+    <div id="designGrid" class="grid"><div class="loading">ডিজাইন লোড হচ্ছে...</div></div>
+  </div>
+</section>
+
+<section id="dashboard" class="hidden-section">
+  <div class="container">
+    <div class="section-title"><h2>My Dashboard</h2><button class="blue" onclick="openModal('uploadModal')">+ Upload Design</button></div>
+    <div id="dashboardNotice" class="notice"></div>
+    <div id="myGrid" class="grid"></div>
+  </div>
+</section>
+
+<section id="admin" class="hidden-section">
+  <div class="container">
+    <div class="section-title"><h2>Admin Panel</h2><button class="gray" onclick="loadAdmin()">Refresh</button></div>
+    <div id="adminNotice" class="notice"></div>
+    <div id="adminGrid" class="grid"></div>
+  </div>
+</section>
+
+<footer>CNC Design Finding © 2026</footer>
+
+<div class="modal" id="loginModal">
+  <div class="modal-box">
+    <h2>Login</h2><div id="loginNotice" class="notice"></div>
+    <label>Email</label><input id="loginEmail" type="email" autocomplete="email">
+    <label>Password</label><input id="loginPassword" type="password" autocomplete="current-password">
+    <div class="modal-actions"><button class="gray" onclick="closeModals()">Cancel</button><button class="blue" onclick="login()">Login</button></div>
+  </div>
+</div>
+
+<div class="modal" id="registerModal">
+  <div class="modal-box">
+    <h2>Create Account</h2><div id="registerNotice" class="notice"></div>
+    <label>Name</label><input id="regName" type="text">
+    <label>Email</label><input id="regEmail" type="email" autocomplete="email">
+    <label>Password</label><input id="regPassword" type="password" autocomplete="new-password">
+    <div class="modal-actions"><button class="gray" onclick="closeModals()">Cancel</button><button class="blue" onclick="register()">Register</button></div>
+  </div>
+</div>
+
+<div class="modal" id="uploadModal">
+  <div class="modal-box">
+    <h2>Upload CNC Design</h2><div id="uploadNotice" class="notice"></div>
+    <label>Design Name</label><input id="designName" type="text">
+    <div class="row">
+      <div><label>Category</label><input id="designCategory" type="text" placeholder="Bed, Table, Door..."></div>
+      <div><label>File Type</label><select id="designType"><option>DXF</option><option>RLF</option><option>STL</option></select></div>
+    </div>
+    <label>Description</label><textarea id="designDescription"></textarea>
+    <label>CNC File (DXF / RLF / STL)</label><input id="designFile" type="file" accept=".dxf,.rlf,.stl">
+    <label>Preview Image</label><input id="designImage" type="file" accept="image/*">
+    <div class="modal-actions"><button class="gray" onclick="closeModals()">Cancel</button><button class="blue" onclick="uploadDesign()">Submit for Review</button></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://pdtzqsbrlpcvoccuvnel.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ua9ejriu4-hx-0tS_dTv2Q_jKFVputL";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let currentProfile = null;
+
+const $ = id => document.getElementById(id);
+function openModal(id){ closeModals(); $(id).classList.add("show"); }
+function closeModals(){ document.querySelectorAll(".modal").forEach(m=>m.classList.remove("show")); }
+function notice(id,msg,type="ok"){ const e=$(id); e.textContent=msg; e.className="notice show "+(type==="err"?"err":"ok"); }
+function clearNotice(id){ const e=$(id); e.className="notice"; e.textContent=""; }
+function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+
+function showSection(name){
+  ["home","dashboard","admin"].forEach(x=>$(x).classList.add("hidden-section"));
+  $(name).classList.remove("hidden-section");
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(name==="home") loadDesigns();
+  if(name==="dashboard") loadMyDesigns();
+  if(name==="admin") loadAdmin();
+}
+
+async function loadDesigns(){
+  const grid=$("designGrid"); grid.innerHTML='<div class="loading">ডিজাইন লোড হচ্ছে...</div>';
+  const {data,error}=await sb.from("designs").select("*").eq("status","approved").order("created_at",{ascending:false});
+  if(error){grid.innerHTML='<div class="empty">ডিজাইন লোড করা যাচ্ছে না।</div>'; return;}
+  if(!data?.length){grid.innerHTML='<div class="empty">এখনো কোনো approved design নেই।</div>'; return;}
+  grid.innerHTML=data.map(d=>publicCard(d)).join("");
+}
+function publicCard(d){
+  let img="";
+  if(d.image_path){
+    const p=sb.storage.from("cnc-images").getPublicUrl(d.image_path);
+    img=p.data?.publicUrl||"";
+  }
+  return `<article class="card">
+    <div class="thumb">${img?`<img src="${img}" alt="${escapeHtml(d.name)}" onerror="this.style.display='none'">`:'<div class="noimg">⌘</div>'}</div>
+    <div class="card-body">
+      <span class="badge approved">APPROVED</span><h3>${escapeHtml(d.name)}</h3>
+      <div class="muted">${escapeHtml(d.category||"CNC Design")} · ${escapeHtml(d.file_type||"")}</div>
+      <p class="muted">${escapeHtml(d.description||"")}</p>
+      <div class="card-actions"><button class="blue" onclick="downloadDesign('${d.id}')">Download</button></div>
+    </div>
+  </article>`;
+}
+
+async function register(){
+  clearNotice("registerNotice");
+  const name=$("regName").value.trim(), email=$("regEmail").value.trim(), password=$("regPassword").value;
+  if(!email||password.length<6){notice("registerNotice","সঠিক email এবং কমপক্ষে ৬ অক্ষরের password দিন।","err");return;}
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{display_name:name||email}}});
+  if(error){notice("registerNotice",error.message,"err");return;}
+  notice("registerNotice","Account তৈরি হয়েছে। এখন Login করুন।");
+  $("regPassword").value="";
+}
+
+async function login(){
+  clearNotice("loginNotice");
+  const email=$("loginEmail").value.trim(), password=$("loginPassword").value;
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){notice("loginNotice",error.message,"err");return;}
+  closeModals(); $("loginPassword").value="";
+}
+
+async function logout(){ await sb.auth.signOut(); showSection("home"); }
+
+async function refreshUser(){
+  const {data}=await sb.auth.getUser();
+  currentUser=data?.user||null; currentProfile=null;
+  if(currentUser){
+    const {data:p}=await sb.from("profiles").select("display_name,role").eq("id",currentUser.id).maybeSingle();
+    currentProfile=p;
+  }
+  updateNav();
+}
+function updateNav(){
+  const logged=!!currentUser, admin=currentProfile?.role==="admin";
+  $("loginBtn").style.display=logged?"none":"inline-block";
+  $("registerBtn").style.display=logged?"none":"inline-block";
+  $("logoutBtn").style.display=logged?"inline-block":"none";
+  $("dashBtn").style.display=logged?"inline-block":"none";
+  $("adminBtn").style.display=admin?"inline-block":"none";
+}
+
+async function uploadDesign(){
+  clearNotice("uploadNotice");
+  if(!currentUser){notice("uploadNotice","আগে Login করুন।","err");return;}
+  const name=$("designName").value.trim(), category=$("designCategory").value.trim(), type=$("designType").value;
+  const desc=$("designDescription").value.trim(), file=$("designFile").files[0], image=$("designImage").files[0];
+  if(!name||!file||!image){notice("uploadNotice","Design name, CNC file এবং preview image দিন।","err");return;}
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(!["dxf","rlf","stl"].includes(ext)){notice("uploadNotice","শুধু DXF, RLF অথবা STL file দিন।","err");return;}
+  const uid=currentUser.id, stamp=Date.now();
+  const filePath=`${uid}/${stamp}_${safeName(file.name)}`;
+  const imagePath=`${uid}/${stamp}_${safeName(image.name)}`;
+  let r=await sb.storage.from("cnc-files").upload(filePath,file,{upsert:false});
+  if(r.error){notice("uploadNotice","CNC file upload হয়নি: "+r.error.message,"err");return;}
+  r=await sb.storage.from("cnc-images").upload(imagePath,image,{upsert:false});
+  if(r.error){await sb.storage.from("cnc-files").remove([filePath]);notice("uploadNotice","Preview image upload হয়নি: "+r.error.message,"err");return;}
+  const {error}=await sb.from("designs").insert({owner_id:uid,name,category,description:desc,file_path:filePath,image_path:imagePath,file_type:ext.toUpperCase(),status:"pending"});
+  if(error){
+    await sb.storage.from("cnc-files").remove([filePath]); await sb.storage.from("cnc-images").remove([imagePath]);
+    notice("uploadNotice","Design save হয়নি: "+error.message,"err");return;
+  }
+  notice("uploadNotice","Design সফলভাবে জমা হয়েছে। এখন Pending অবস্থায় Admin Review করবে।");
+  ["designName","designCategory","designDescription","designFile","designImage"].forEach(x=>$(x).value="");
+  setTimeout(()=>{closeModals();loadMyDesigns();showSection("dashboard")},900);
+}
+function safeName(n){return n.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-100);}
+
+async function loadMyDesigns(){
+  if(!currentUser){$("myGrid").innerHTML='<div class="empty">Login করুন।</div>';return;}
+  const {data,error}=await sb.from("designs").select("*").eq("owner_id",currentUser.id).order("created_at",{ascending:false});
+  if(error){$("myGrid").innerHTML='<div class="empty">ডাটা লোড হয়নি।</div>';return;}
+  if(!data?.length){$("myGrid").innerHTML='<div class="empty">আপনি এখনো কোনো design জমা দেননি।</div>';return;}
+  $("myGrid").innerHTML=data.map(myCard).join("");
+}
+function myCard(d){
+  const reason=d.rejection_reason?`<p class="muted"><b>Reason:</b> ${escapeHtml(d.rejection_reason)}</p>`:"";
+  return `<article class="card"><div class="card-body">
+    <span class="badge ${d.status}">${escapeHtml(d.status.toUpperCase())}</span>
+    <h3>${escapeHtml(d.name)}</h3><div class="muted">${escapeHtml(d.category||"")} · ${escapeHtml(d.file_type||"")}</div>
+    <p class="muted">${escapeHtml(d.description||"")}</p>${reason}
+    ${d.status==="approved"?`<div class="card-actions"><button class="blue" onclick="downloadDesign('${d.id}')">Download</button></div>`:""}
+  </div></article>`;
+}
+
+async function loadAdmin(){
+  if(currentProfile?.role!=="admin"){ $("adminGrid").innerHTML='<div class="empty">Admin access required.</div>';return;}
+  const {data,error}=await sb.from("designs").select("*").order("created_at",{ascending:false});
+  if(error){$("adminGrid").innerHTML='<div class="empty">Admin data লোড হয়নি।</div>';return;}
+  if(!data?.length){$("adminGrid").innerHTML='<div class="empty">কোনো design নেই।</div>';return;}
+  $("adminGrid").innerHTML=data.map(adminCard).join("");
+}
+function adminCard(d){
+  return `<article class="card"><div class="card-body">
+    <span class="badge ${d.status}">${escapeHtml(d.status.toUpperCase())}</span>
+    <h3>${escapeHtml(d.name)}</h3><div class="muted">${escapeHtml(d.category||"")} · ${escapeHtml(d.file_type||"")}</div>
+    <p class="muted">${escapeHtml(d.description||"")}</p>
+    <div class="card-actions">
+      <button class="blue" onclick="adminDownload('${d.id}')">CNC File</button>
+      ${d.status==="pending"?`<button class="green" onclick="approveDesign('${d.id}')">Approve</button><button class="red" onclick="rejectDesign('${d.id}')">Reject</button>`:""}
+      ${d.status==="approved"?`<button class="gray" onclick="hideDesign('${d.id}')">Hide</button>`:""}
+      ${d.status==="hidden"?`<button class="green" onclick="approveDesign('${d.id}')">Show</button>`:""}
+      <button class="red" onclick="deleteDesign('${d.id}')">Delete</button>
+    </div>
+  </div></article>`;
+}
+async function approveDesign(id){await updateStatus(id,"approved","");}
+async function hideDesign(id){await updateStatus(id,"hidden","");}
+async function rejectDesign(id){const reason=prompt("Reject করার কারণ লিখুন:");if(reason===null)return;await updateStatus(id,"rejected",reason);}
+async function updateStatus(id,status,reason){
+  const {error}=await sb.from("designs").update({status,rejection_reason:reason||null,reviewed_at:new Date().toISOString()}).eq("id",id);
+  if(error){notice("adminNotice",error.message,"err");return;} notice("adminNotice","Update সফল হয়েছে।"); loadAdmin(); loadDesigns();
+}
+async function deleteDesign(id){
+  if(!confirm("এই design স্থায়ীভাবে Delete করবেন?"))return;
+  const {data,error}=await sb.from("designs").select("file_path,image_path").eq("id",id).single();
+  if(error){notice("adminNotice",error.message,"err");return;}
+  const {error:de}=await sb.from("designs").delete().eq("id",id);
+  if(de){notice("adminNotice",de.message,"err");return;}
+  if(data.file_path) await sb.storage.from("cnc-files").remove([data.file_path]);
+  if(data.image_path) await sb.storage.from("cnc-images").remove([data.image_path]);
+  notice("adminNotice","Design deleted.");loadAdmin();loadDesigns();
+}
+async function getDesign(id){
+  const {data,error}=await sb.from("designs").select("*").eq("id",id).single();
+  return error?null:data;
+}
+async function downloadDesign(id){
+  const d=await getDesign(id); if(!d||d.status!=="approved"){alert("Design available নয়।");return;}
+  if(!currentUser){alert("Download করতে Login করুন।");openModal("loginModal");return;}
+  const {data,error}=await sb.storage.from("cnc-files").createSignedUrl(d.file_path,300);
+  if(error){alert("Download failed: "+error.message);return;}
+  window.open(data.signedUrl,"_blank");
+}
+async function adminDownload(id){
+  const d=await getDesign(id);if(!d)return;
+  const {data,error}=await sb.storage.from("cnc-files").createSignedUrl(d.file_path,300);
+  if(error){alert(error.message);return;}window.open(data.signedUrl,"_blank");
+}
+
+sb.auth.onAuthStateChange(async()=>{setTimeout(async()=>{await refreshUser(); if(currentUser) loadMyDesigns();},100);});
+(async()=>{await refreshUser();await loadDesigns();})();
+</script>
+</body>
+</html>
